@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Профиль пользователя</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Заголовок профиля -->
+  <h1 id="mainTitle">Профиль пользователя</h1>
+  
+  <!-- Заголовок статистики -->
+  <h2 id="statsTitle">СТАТИСТИКА</h2>
+  
+  <!-- Контейнер статистики -->
+  <div id="profileStats">
+    <p>Номер пользователя: <span id="userIdDisplay">Загрузка...</span></p>
+    <p>Дата регистрации: <span id="regDateDisplay">Загрузка...</span></p>
+    <p>Сыграно игр: <span id="gameNumDisplay">Загрузка...</span></p>
+    <p>Набрано очков: <span id="scoreDisplay">Загрузка...</span></p>
+  </div>
+  
+  <!-- Контейнер для кнопок -->
+  <div id="buttonsContainer">
+    <!-- Большая кнопка "Играть" -->
+    <button id="playButton">Играть</button>
+    
+    <!-- Две кнопки, расположенные рядом -->
+    <div id="secondaryButtons">
+      <button id="backBtn">Выйти</button>
+      <button id="ratingButton">Рейтинг</button>
+    </div>
+  </div>
+  
+  <script src="profile.js"></script>
+</body>
+</html>

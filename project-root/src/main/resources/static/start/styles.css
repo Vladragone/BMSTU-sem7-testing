@@ -1,0 +1,76 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-image: url('../assets/world.png'); /* Указываем путь к изображению */
+    background-size: cover;  /* Изображение будет растянуто на весь экран */
+    background-position: center; /* Центрируем фон */
+    background-attachment: fixed; /* Закрепляем фон */
+}
+
+.container {
+    background-color: rgba(255, 255, 255, 0); /* Прозрачный фон для контейнера */
+    padding: 20px;
+    box-shadow: none; /* Убираем тень */
+    border-radius: 8px;
+    width: 60%; /* Ширина контейнера на 60% от экрана */
+    max-width: 600px; /* Максимальная ширина контейнера */
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Заголовок "FindMe" – 150px, белый текст, серый полупрозрачный прямоугольник */
+h1 {
+    margin-bottom: 30px;
+    font-size: 150px;
+    color: white;
+    background-color: rgba(128, 128, 128, 0.7);
+    padding: 20px;
+    border-radius: 8px;
+}
+
+/* Большая кнопка "Начать Игру" */
+.big-button {
+    width: 100%; /* Кнопка занимает всю ширину контейнера */
+    height: 150px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 72px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 150px; /* Центрирование текста по вертикали */
+    cursor: pointer;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+}
+
+
+.small-buttons {
+    display: flex;
+    justify-content: space-between; /* Размещаем кнопки рядом */
+    width: 100%;
+    gap: 10px; /* Отступы между кнопками */
+}
+
+.small-button {
+    flex: 1; /* Кнопки растягиваются равномерно */
+    height: 150px; /* Высота кнопок */
+    background-color: #000000;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 36px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 150px; /* Центрирование текста по вертикали */
+    cursor: pointer;
+}

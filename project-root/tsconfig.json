@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES6",    
+    "lib": ["es2017", "dom"],
+    "module": "ESNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "rootDir": "src/main/resources/static",   // Указываем, что исходники находятся в этой папке
+    "allowJs": true,                         // Позволяет компилировать .js файлы
+    "noEmitOnError": true                    // Если есть ошибки, не генерировать файлы
+  },
+  "include": [
+    "src/main/resources/static/**/*.ts"       // Все .ts файлы внутри папки static
+  ],
+  "exclude": [
+    "node_modules"                            // Исключаем node_modules
+  ]
+}

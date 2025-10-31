@@ -1,0 +1,116 @@
+/* Фон на всю страницу */
+.background-container {
+    background-image: url('../assets/world.png'); /* Указываем путь к фону */
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    width: 100%;
+    display: flex;
+    justify-content: center; /* Центрируем форму */
+    align-items: center; /* Центрируем форму по вертикали */
+}
+
+/* Контейнер с формой */
+.register-container {
+    background-color: rgba(255, 255, 255, 0.8); /* Легкий фон для контейнера */
+    padding: 40px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Тень вокруг формы */
+    border-radius: 8px;
+    width: 50%; /* Устанавливаем ширину формы */
+    max-width: 600px;
+    margin: 50px auto;
+    text-align: center;
+}
+
+h1 {
+    margin-bottom: 30px;
+    font-size: 48px;
+    color: #003366; /* Темно-синий цвет */
+}
+
+.register-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Отступы между полями */
+}
+
+.form-field {
+    text-align: left;
+}
+
+label {
+    display: block;
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: #333; /* Темный цвет для текста */
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    font-size: 18px;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box; /* Для правильного расчета ширины */
+}
+
+input:focus {
+    border-color: #4CAF50; /* Изменение цвета бордера при фокусе */
+    outline: none;
+}
+
+.submit-button {
+    width: 100%;
+    padding: 20px;
+    font-size: 24px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.submit-button:hover {
+    background-color: #45a049;
+}
+
+/* Кнопка назад */
+.back-button {
+    width: 100%;
+    padding: 20px;
+    font-size: 24px;
+    background-color: #f44336; /* Красный цвет */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px; /* Отступ сверху */
+}
+
+.back-button:hover {
+    background-color: #e53935;
+}
+
+/* Стиль для тултипа */
+.tooltip-container {
+    margin: 10px 0;
+    font-size: 14px;
+    color: #f44336; /* Красный цвет для текста */
+    text-align: left;
+}
+
+.tooltip {
+    background-color: #f8d7da;
+    padding: 10px;
+    border: 1px solid #f44336;
+    border-radius: 5px;
+    font-size: 14px;
+    display: none; /* По умолчанию скрыт */
+}
+
+/* Добавим класс для стилизации сообщения об ошибке */
+.error-message {
+    color: red;             /* Красный текст */
+    margin-top: 4px;        /* Небольшой отступ сверху */
+    font-size: 14px;        /* Размер шрифта для сообщения */
+}

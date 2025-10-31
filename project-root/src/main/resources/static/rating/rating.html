@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Рейтинг</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Основной контейнер рейтинга -->
+  <div id="ratingContent" class="points-mode">
+    <!-- Заголовок "Рейтинг" с полупрозрачным фоном -->
+    <h1 id="ratingTitle">Рейтинг</h1>
+    
+    <!-- Контейнер для центрирования свайпера -->
+    <div class="switch-wrapper">
+      <div class="switch-container">
+        <span class="switch-label left">Очки</span>
+        <label class="switch">
+          <input type="checkbox" id="ratingSwitch">
+          <span class="slider round"></span>
+        </label>
+        <span class="switch-label right">Игры</span>
+      </div>
+    </div>
+    
+    <!-- Контейнер для списка рейтинга (внутри него первая строка — заголовок таблицы) -->
+    <div id="ratingList">
+      <div class="tableHeader">Топ-3 игроков</div>
+      <p>Загрузка рейтинга...</p>
+    </div>
+    
+    <!-- Контейнер для нижних кнопок -->
+    <div id="buttonsContainer">
+      <!-- Кнопка "Играть" занимает всю ширину -->
+      <button id="playButton">Играть</button>
+      <!-- Контейнер для двух второстепенных кнопок, расположенных рядом -->
+      <div id="secondaryButtons">
+        <button id="backBtn">Выйти</button>
+        <button id="profileBtn">Профиль</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="rating.js"></script>
+</body>
+</html>
