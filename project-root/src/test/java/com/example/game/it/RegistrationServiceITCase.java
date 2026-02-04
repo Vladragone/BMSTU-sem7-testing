@@ -1,4 +1,4 @@
-﻿package com.example.game.it;
+package com.example.game.it;
 
 import com.example.game.dto.UserRequestDTO;
 import com.example.game.repository.ProfileRepository;
