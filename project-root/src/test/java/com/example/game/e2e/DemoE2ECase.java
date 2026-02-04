@@ -1,4 +1,4 @@
-﻿package com.example.game.e2e;
+package com.example.game.e2e;
 
 import com.example.game.dto.LoginRequestDTO;
 import com.example.game.dto.ProfileRequestDTO;
