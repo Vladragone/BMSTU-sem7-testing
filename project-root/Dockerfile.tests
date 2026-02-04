@@ -1,0 +1,12 @@
+﻿FROM maven:3.9.6-eclipse-temurin-17
+
+WORKDIR /app
+COPY . /app
+
+RUN chmod +x mvnw scripts/*.sh \
+    && apt-get update \
+    && apt-get install -y netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV MAVEN_OPTS="-Dmaven.repo.local=/app/.m2"
+ENTRYPOINT ["./mvnw"]

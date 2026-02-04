@@ -1,0 +1,39 @@
+﻿version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${TEST_DB_NAME:-game_test}
+      POSTGRES_USER: ${TEST_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${TEST_DB_PASS:-postgres}
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  tests:
+    build:
+      context: ./project-root
+      dockerfile: Dockerfile.tests
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TEST_DB_HOST: db
+      TEST_DB_PORT: 5432
+      TEST_DB_NAME: ${TEST_DB_NAME:-game_test}
+      TEST_DB_USER: ${TEST_DB_USER:-postgres}
+      TEST_DB_PASS: ${TEST_DB_PASS:-postgres}
+    volumes:
+      - ./project-root:/app
+      - m2-cache:/app/.m2
+    working_dir: /app
+    entrypoint: ["/bin/bash", "-lc"]
+    command: "./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipITs=true test"
+
+volumes:
+  m2-cache:
