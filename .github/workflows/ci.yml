@@ -1,13 +1,9 @@
 ﻿name: CI
 
-on:
-  push:
-    branches: ["**"]
-  pull_request:
+on: [push, pull_request]
 
 jobs:
-  unit:
-    name: Unit Tests
+  tests:
     runs-on: ubuntu-latest
     env:
       TEST_DB_NAME: game_test
@@ -15,157 +11,14 @@ jobs:
       TEST_DB_PASS: postgres
     steps:
       - uses: actions/checkout@v4
-      - name: Build test image
-        run: docker compose -f docker-compose.tests.yml build tests
-      - name: Start DB
-        run: docker compose -f docker-compose.tests.yml up -d db
-      - name: Run unit tests
-        run: >-
-          docker compose -f docker-compose.tests.yml run --rm tests
-          "sed -i 's/\\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipITs=true -Dallure.results.directory=allure-results/unit -Dallure.skip=true test"
-      - name: Collect artifacts
-        if: always()
-        run: |
-          mkdir -p artifacts/unit
-          if [ -d project-root/target/allure-results/unit ]; then
-            cp -r project-root/target/allure-results/unit artifacts/unit/
-          fi
-          if [ -d project-root/target/surefire-reports ]; then
-            cp -r project-root/target/surefire-reports artifacts/unit/
-          fi
-      - name: Upload artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-artifacts
-          path: artifacts/unit
-      - name: Stop compose
-        if: always()
-        run: docker compose -f docker-compose.tests.yml down -v
-
-  integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: unit
-    env:
-      TEST_DB_NAME: game_test
-      TEST_DB_USER: postgres
-      TEST_DB_PASS: postgres
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build test image
-        run: docker compose -f docker-compose.tests.yml build tests
-      - name: Start DB
-        run: docker compose -f docker-compose.tests.yml up -d db
-      - name: Run integration tests
-        run: >-
-          docker compose -f docker-compose.tests.yml run --rm tests
-          "sed -i 's/\\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=false -DskipITs=false -Dit.test='**/*ITCase' -Dallure.results.directory=allure-results/integration -Dallure.skip=true verify"
-      - name: Rollback DB
-        if: always()
-        run: |
-          DB_CID=$(docker compose -f docker-compose.tests.yml ps -q db)
-          if [ -n "$DB_CID" ]; then
-            docker exec -i "$DB_CID" psql -U "$TEST_DB_USER" -d "$TEST_DB_NAME" < project-root/src/test/resources/sql/clean.sql
-          fi
-      - name: Collect artifacts
-        if: always()
-        run: |
-          mkdir -p artifacts/integration
-          if [ -d project-root/target/allure-results/integration ]; then
-            cp -r project-root/target/allure-results/integration artifacts/integration/
-          fi
-          if [ -d project-root/target/failsafe-reports ]; then
-            cp -r project-root/target/failsafe-reports artifacts/integration/
-          fi
-      - name: Upload artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-artifacts
-          path: artifacts/integration
-      - name: Stop compose
-        if: always()
-        run: docker compose -f docker-compose.tests.yml down -v
-
-  e2e:
-    name: E2E Tests
-    runs-on: ubuntu-latest
-    needs: integration
-    env:
-      TEST_DB_NAME: game_test
-      TEST_DB_USER: postgres
-      TEST_DB_PASS: postgres
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build test image
-        run: docker compose -f docker-compose.tests.yml build tests
-      - name: Start DB
-        run: docker compose -f docker-compose.tests.yml up -d db
-      - name: Run e2e tests
-        run: >-
-          docker compose -f docker-compose.tests.yml run --rm tests
-          "sed -i 's/\\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=false -DskipITs=false -Dit.test='**/*E2ECase' -Dallure.results.directory=allure-results/e2e -Dallure.skip=true verify"
-      - name: Rollback DB
-        if: always()
-        run: |
-          DB_CID=$(docker compose -f docker-compose.tests.yml ps -q db)
-          if [ -n "$DB_CID" ]; then
-            docker exec -i "$DB_CID" psql -U "$TEST_DB_USER" -d "$TEST_DB_NAME" < project-root/src/test/resources/sql/clean.sql
-          fi
-      - name: Collect artifacts
-        if: always()
-        run: |
-          mkdir -p artifacts/e2e
-          if [ -d project-root/target/allure-results/e2e ]; then
-            cp -r project-root/target/allure-results/e2e artifacts/e2e/
-          fi
-          if [ -d project-root/target/failsafe-reports ]; then
-            cp -r project-root/target/failsafe-reports artifacts/e2e/
-          fi
-      - name: Upload artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-artifacts
-          path: artifacts/e2e
-      - name: Stop compose
-        if: always()
-        run: docker compose -f docker-compose.tests.yml down -v
-
-  report:
-    name: Allure Report
-    runs-on: ubuntu-latest
-    if: always()
-    needs: [unit, integration, e2e]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      - name: Prepare allure results
-        run: |
-          mkdir -p project-root/target/allure-results
-          if [ -d artifacts/unit/unit ]; then
-            cp -r artifacts/unit/unit/* project-root/target/allure-results/ || true
-          fi
-          if [ -d artifacts/integration/integration ]; then
-            cp -r artifacts/integration/integration/* project-root/target/allure-results/ || true
-          fi
-          if [ -d artifacts/e2e/e2e ]; then
-            cp -r artifacts/e2e/e2e/* project-root/target/allure-results/ || true
-          fi
-      - name: Generate report
-        run: |
-          cd project-root
-          chmod +x mvnw scripts/allure_report.sh
-          scripts/allure_report.sh
-      - name: Upload report
-        uses: actions/upload-artifact@v4
+      - run: docker compose -f docker-compose.tests.yml up -d db
+      - run: docker compose -f docker-compose.tests.yml run --rm tests "sed -i 's/\\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipITs=true -Dallure.results.directory=allure-results/unit -Dallure.skip=true test"
+      - run: docker compose -f docker-compose.tests.yml run --rm tests "sed -i 's/\\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=false -DskipITs=false -Dit.test='**/*ITCase' -Dallure.results.directory=allure-results/integration -Dallure.skip=true verify"
+      - run: docker compose -f docker-compose.tests.yml run --rm tests "sed -i 's/\\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=false -DskipITs=false -Dit.test='**/*E2ECase' -Dallure.results.directory=allure-results/e2e -Dallure.skip=true verify"
+      - run: docker compose -f docker-compose.tests.yml run --rm tests "sed -i 's/\\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/allure_report.sh"
+      - uses: actions/upload-artifact@v4
         with:
           name: allure-report
           path: project-root/target/site/allure-maven-plugin
-
-
-
+      - if: always()
+        run: docker compose -f docker-compose.tests.yml down -v
