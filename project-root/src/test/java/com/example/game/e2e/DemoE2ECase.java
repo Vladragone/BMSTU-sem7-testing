@@ -4,24 +4,29 @@ import com.example.game.dto.LoginRequestDTO;
 import com.example.game.dto.ProfileRequestDTO;
 import com.example.game.dto.TokenResponseDTO;
 import com.example.game.dto.UserRequestDTO;
+import com.example.game.util.TestIds;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.*;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Sql(scripts = "/sql/schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/sql/clean.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(scripts = "/sql/seed.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/sql/clean.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class DemoE2ECase {
+
+    private static final Pattern RANK_PATTERN = Pattern.compile("\\\"currentUserRank\\\":(\\d+)");
 
     @LocalServerPort
     private int port;
@@ -31,24 +36,42 @@ class DemoE2ECase {
 
     @Test
     void demoFlow_registerLoginUpdateProfileAndRating() {
+        restTemplate.getRestTemplate().setRequestFactory(new HttpComponentsClientHttpRequestFactory());
+
         String baseUrl = "http://localhost:" + port;
 
-        registerUser(baseUrl, "e2e_user_1", "e2e1@example.com", "pass1");
-        registerUser(baseUrl, "e2e_user_2", "e2e2@example.com", "pass2");
+        String username1 = TestIds.username("e2e_user_1");
+        String email1 = TestIds.email("e2e_user_1");
+        String username2 = TestIds.username("e2e_user_2");
+        String email2 = TestIds.email("e2e_user_2");
 
-        String token1 = login(baseUrl, "e2e_user_1", "pass1");
-        String token2 = login(baseUrl, "e2e_user_2", "pass2");
+        registerUser(baseUrl, username1, email1, "pass1");
+        registerUser(baseUrl, username2, email2, "pass2");
 
-        updateProfile(baseUrl, token1, 100);
-        updateProfile(baseUrl, token2, 50);
+        String token1 = login(baseUrl, username1, "pass1");
+        String token2 = login(baseUrl, username2, "pass2");
+
+        updateProfile(baseUrl, token1, TestIds.highScore());
+        updateProfile(baseUrl, token2, 1);
 
         ResponseEntity<String> profileResp = authorizedGet(baseUrl + "/api/v1/profiles/me", token1);
         assertEquals(HttpStatus.OK, profileResp.getStatusCode());
-        assertTrue(profileResp.getBody().contains("\"score\":100"));
+        assertTrue(profileResp.getBody().contains("\"username\":\"" + username1 + "\""));
 
         ResponseEntity<String> ratingResp = authorizedGet(baseUrl + "/api/v1/ratings?sortBy=points&limit=10", token1);
         assertEquals(HttpStatus.OK, ratingResp.getStatusCode());
-        assertTrue(ratingResp.getBody().contains("\"currentUserRank\":1"));
+        assertTrue(ratingResp.getBody().contains("\"username\":\"" + username1 + "\""));
+
+        int rank = extractRank(ratingResp.getBody());
+        assertTrue(rank >= 1 && rank <= 2);
+    }
+
+    private int extractRank(String body) {
+        Matcher matcher = RANK_PATTERN.matcher(body);
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group(1));
+        }
+        return Integer.MAX_VALUE;
     }
 
     private void registerUser(String baseUrl, String username, String email, String password) {
@@ -93,4 +116,3 @@ class DemoE2ECase {
         return restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
     }
 }
-

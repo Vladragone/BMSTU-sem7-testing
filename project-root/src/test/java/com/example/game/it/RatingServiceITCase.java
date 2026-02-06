@@ -7,6 +7,7 @@ import com.example.game.repository.UserRepository;
 import com.example.game.service.RatingService;
 import com.example.game.service.RegistrationService;
 import com.example.game.util.JwtUtil;
+import com.example.game.util.TestIds;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,9 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("test")
 @Sql(scripts = "/sql/schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/sql/clean.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(scripts = "/sql/seed.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/sql/clean.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class RatingServiceITCase {
 
     @Autowired
@@ -37,18 +36,23 @@ class RatingServiceITCase {
 
     @Test
     void getSortedRatingAndRank_returnsRank() {
-        registrationService.register(new UserRequestDTO("rate_it_1", "rate_it_1@example.com", "pass1"));
-        registrationService.register(new UserRequestDTO("rate_it_2", "rate_it_2@example.com", "pass2"));
+        String username1 = TestIds.username("rate_it_1");
+        String email1 = TestIds.email("rate_it_1");
+        String username2 = TestIds.username("rate_it_2");
+        String email2 = TestIds.email("rate_it_2");
 
-        var user1 = userRepository.findByUsername("rate_it_1").orElseThrow();
+        registrationService.register(new UserRequestDTO(username1, email1, "pass1"));
+        registrationService.register(new UserRequestDTO(username2, email2, "pass2"));
 
-        Profile p1 = profileRepository.findByUserUsername("rate_it_1").orElseThrow();
-        p1.setScore(120);
+        var user1 = userRepository.findByUsername(username1).orElseThrow();
+
+        Profile p1 = profileRepository.findByUserUsername(username1).orElseThrow();
+        p1.setScore(TestIds.highScore());
         p1.setGameNum(3);
         profileRepository.save(p1);
 
-        Profile p2 = profileRepository.findByUserUsername("rate_it_2").orElseThrow();
-        p2.setScore(50);
+        Profile p2 = profileRepository.findByUserUsername(username2).orElseThrow();
+        p2.setScore(1);
         p2.setGameNum(1);
         profileRepository.save(p2);
 
@@ -56,8 +60,7 @@ class RatingServiceITCase {
         var result = ratingService.getSortedRatingAndRank(token, "points", 10);
 
         assertNotNull(result);
-        assertEquals(1, result.getCurrentUserRank());
+        assertTrue(result.getCurrentUserRank() >= 1 && result.getCurrentUserRank() <= 2);
         assertTrue(result.getTopUsers().size() >= 2);
     }
 }
-

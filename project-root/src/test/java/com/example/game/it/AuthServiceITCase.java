@@ -4,6 +4,7 @@ import com.example.game.dto.LoginRequestDTO;
 import com.example.game.dto.UserRequestDTO;
 import com.example.game.service.AuthService;
 import com.example.game.service.RegistrationService;
+import com.example.game.util.TestIds;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,9 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("test")
 @Sql(scripts = "/sql/schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/sql/clean.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(scripts = "/sql/seed.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/sql/clean.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class AuthServiceITCase {
 
     @Autowired
@@ -28,10 +27,13 @@ class AuthServiceITCase {
 
     @Test
     void authenticateUser_returnsToken() {
-        registrationService.register(new UserRequestDTO("auth_it", "auth_it@example.com", "secret"));
+        String username = TestIds.username("auth_it");
+        String email = TestIds.email("auth_it");
+
+        registrationService.register(new UserRequestDTO(username, email, "secret"));
 
         LoginRequestDTO login = new LoginRequestDTO();
-        login.setUsername("auth_it");
+        login.setUsername(username);
         login.setPassword("secret");
 
         var token = authService.authenticateUser(login);
@@ -40,4 +42,3 @@ class AuthServiceITCase {
         assertFalse(token.getToken().isBlank());
     }
 }
-

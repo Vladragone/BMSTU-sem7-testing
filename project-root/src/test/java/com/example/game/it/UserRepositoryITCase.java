@@ -2,6 +2,7 @@ package com.example.game.it;
 
 import com.example.game.model.User;
 import com.example.game.repository.UserRepository;
+import com.example.game.util.TestIds;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -15,9 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
 @Sql(scripts = "/sql/schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/sql/clean.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(scripts = "/sql/seed.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/sql/clean.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class UserRepositoryITCase {
 
     @Autowired
@@ -25,28 +24,33 @@ class UserRepositoryITCase {
 
     @Test
     void findByUsername_success() {
+        String username = TestIds.username("it_user");
+        String email = TestIds.email("it_user");
+
         User user = new User();
-        user.setUsername("it_user");
-        user.setEmail("it_user@example.com");
+        user.setUsername(username);
+        user.setEmail(email);
         user.setPassword("pass");
         user.setRole("user");
         userRepository.save(user);
 
-        var found = userRepository.findByUsername("it_user");
+        var found = userRepository.findByUsername(username);
         assertTrue(found.isPresent());
-        assertEquals("it_user@example.com", found.get().getEmail());
+        assertEquals(email, found.get().getEmail());
     }
 
     @Test
     void existsByEmail_success() {
+        String username = TestIds.username("it_user2");
+        String email = TestIds.email("it_user2");
+
         User user = new User();
-        user.setUsername("it_user2");
-        user.setEmail("it_user2@example.com");
+        user.setUsername(username);
+        user.setEmail(email);
         user.setPassword("pass");
         user.setRole("user");
         userRepository.save(user);
 
-        assertTrue(userRepository.existsByEmail("it_user2@example.com"));
+        assertTrue(userRepository.existsByEmail(email));
     }
 }
-

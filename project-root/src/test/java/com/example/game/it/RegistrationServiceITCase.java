@@ -4,6 +4,7 @@ import com.example.game.dto.UserRequestDTO;
 import com.example.game.repository.ProfileRepository;
 import com.example.game.repository.UserRepository;
 import com.example.game.service.RegistrationService;
+import com.example.game.util.TestIds;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,9 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("test")
 @Sql(scripts = "/sql/schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/sql/clean.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(scripts = "/sql/seed.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/sql/clean.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class RegistrationServiceITCase {
 
     @Autowired
@@ -31,17 +30,19 @@ class RegistrationServiceITCase {
 
     @Test
     void register_createsUserAndProfile() {
-        UserRequestDTO req = new UserRequestDTO("reg_it", "reg_it@example.com", "password");
+        String username = TestIds.username("reg_it");
+        String email = TestIds.email("reg_it");
+
+        UserRequestDTO req = new UserRequestDTO(username, email, "password");
         var created = registrationService.register(req);
 
         assertNotNull(created.getId());
-        assertEquals("reg_it", created.getUsername());
+        assertEquals(username, created.getUsername());
 
-        var userOpt = userRepository.findByUsername("reg_it");
+        var userOpt = userRepository.findByUsername(username);
         assertTrue(userOpt.isPresent());
 
-        var profileOpt = profileRepository.findByUserUsername("reg_it");
+        var profileOpt = profileRepository.findByUserUsername(username);
         assertTrue(profileOpt.isPresent());
     }
 }
-

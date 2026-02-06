@@ -22,7 +22,7 @@ jobs:
       - name: Run unit tests
         run: >-
           docker compose -f docker-compose.tests.yml run --rm tests
-          "chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipITs=true -Dallure.results.directory=target/allure-results/unit test"
+          "sed -i 's/\\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipITs=true -Dallure.results.directory=allure-results/unit -Dallure.skip=true test"
       - name: Collect artifacts
         if: always()
         run: |
@@ -60,7 +60,7 @@ jobs:
       - name: Run integration tests
         run: >-
           docker compose -f docker-compose.tests.yml run --rm tests
-          "chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=true -DskipITs=false -Dit.test='**/*ITCase' -Dallure.results.directory=target/allure-results/integration verify"
+          "sed -i 's/\\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=false -DskipITs=false -Dit.test='**/*ITCase' -Dallure.results.directory=allure-results/integration -Dallure.skip=true verify"
       - name: Rollback DB
         if: always()
         run: |
@@ -105,7 +105,7 @@ jobs:
       - name: Run e2e tests
         run: >-
           docker compose -f docker-compose.tests.yml run --rm tests
-          "chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=true -DskipITs=false -Dit.test='**/*E2ECase' -Dallure.results.directory=target/allure-results/e2e verify"
+          "sed -i 's/\\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=false -DskipITs=false -Dit.test='**/*E2ECase' -Dallure.results.directory=allure-results/e2e -Dallure.skip=true verify"
       - name: Rollback DB
         if: always()
         run: |
@@ -166,3 +166,6 @@ jobs:
         with:
           name: allure-report
           path: project-root/target/site/allure-maven-plugin
+
+
+

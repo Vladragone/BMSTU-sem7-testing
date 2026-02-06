@@ -35,3 +35,4 @@
 
 volumes:
   m2-cache:
+    name: bmstu-m2-cache
