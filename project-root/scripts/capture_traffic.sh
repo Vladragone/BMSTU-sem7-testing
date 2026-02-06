@@ -1,7 +1,11 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -euo pipefail
 
-output="${1:-traffic.pcap}"
+root_dir="$(cd "$(dirname "$0")/.." && pwd)"
+output_dir="$root_dir/traffic"
+mkdir -p "$output_dir"
+
+output="$output_dir/${1:-traffic.pcap}"
 base_url="${BASE_URL:-http://localhost:8080}"
 
 sudo tcpdump -i any -w "$output" "tcp port 8080" &

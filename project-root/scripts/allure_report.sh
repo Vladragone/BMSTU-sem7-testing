@@ -33,7 +33,6 @@ merge_dir "$results_root/e2e" "e2e"
 
 mkdir -p "$report_dir"
 
-# Prefer bundled Allure CLI to avoid Maven plugin resolution issues
 allure_bin=""
 if [ -x "$root_dir/.allure/allure-2.30.0/bin/allure" ]; then
   allure_bin="$root_dir/.allure/allure-2.30.0/bin/allure"

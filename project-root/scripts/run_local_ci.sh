@@ -43,7 +43,6 @@ if [ ! -f "$compose_file" ]; then
   exit 1
 fi
 
-# SHARED_DB=1 means use a single shared DB container and schema/tables.
 if [ "${SHARED_DB:-0}" = "1" ]; then
   export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-shared}"
   echo "Using shared DB with COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME"
