@@ -1,2 +1,13 @@
 /benchmark/**/*.png
 benchmark/results/**/run-001/*.png
+benchmark/results/20260302-175700/run-001/latency_histogram.png
+benchmark/results/20260302-175700/run-001/latency_over_time_rps_100.png
+benchmark/results/20260302-175700/run-001/latency_over_time_rps_300.png
+benchmark/results/20260302-175700/run-001/latency_over_time_rps_600.png
+benchmark/results/20260302-175700/run-001/latency_over_time_rps_900.png
+benchmark/results/20260302-175700/run-001/latency_over_time_rps_1200.png
+benchmark/results/20260302-175700/run-001/latency_over_time_rps_2000.png
+benchmark/results/20260302-175700/run-001/latency_over_time.png
+benchmark/results/20260302-175700/run-001/latency_percentiles.png
+benchmark/results/20260302-175700/run-001/resources_app_over_time.png
+benchmark/results/20260302-175700/run-001/resources_db_over_time.png
