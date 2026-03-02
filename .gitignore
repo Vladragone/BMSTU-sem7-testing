@@ -1,1 +1,2 @@
 /benchmark/**/*.png
+benchmark/results/**/run-001/*.png
