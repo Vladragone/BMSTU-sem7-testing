@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: game_bench
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "${BENCH_DB_PORT:-15432}:5432"
+    cpus: "1.0"
+    mem_limit: 512m
+
+  app:
+    build:
+      context: ../project-root
+      dockerfile: Dockerfile.app
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/game_bench
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8080
+      SERVER_ADDRESS: 0.0.0.0
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB: ERROR
+      LOGGING_LEVEL_COM_EXAMPLE_GAME: ERROR
+      LOGGING_LEVEL_ORG_HIBERNATE: ERROR
+    ports:
+      - "${BENCH_APP_PORT:-18080}:8080"
+    cpus: "1.5"
+    mem_limit: 768m
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    ports:
+      - "${BENCH_CADVISOR_PORT:-18081}:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    cpus: "0.5"
+    mem_limit: 256m
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=1d"
+    ports:
+      - "${BENCH_PROM_PORT:-19090}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - cadvisor
+    cpus: "0.5"
+    mem_limit: 256m

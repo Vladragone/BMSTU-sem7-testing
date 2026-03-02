@@ -88,3 +88,55 @@ Pipeline находится в `.github/workflows/ci.yml` и запускает 
 - `project-root/src/test/resources/sql/schema.sql` — схема БД
 - `project-root/src/test/resources/sql/seed.sql` — начальные данные
 
+## Лабораторная работа №3 (Benchmark)
+Все команды выполнять из корня репозитория.
+
+### Что нужно
+- Docker / Docker Compose
+- Python 3.12 (рекомендуется для скриптов построения графиков)
+
+Установка зависимостей для PNG-графиков:
+```bash
+python3.12 -m pip install -r benchmark/scripts/requirements.txt
+```
+
+### Полный запуск ЛР3 (с графиками latency + ресурсов)
+```bash
+RUNS=100 \
+ONLY_HEAVY=1 \
+HEAVY_PROFILE_RPS=100,300,600,900,1200,2000 \
+HEAVY_STAGE_DURATION=2m \
+K6_CPUS=2 \
+K6_MEMORY=4g \
+bash benchmark/run_benchmark.sh
+```
+
+### Короткий отладочный запуск (1 прогон)
+```bash
+RUNS=1 \
+ONLY_HEAVY=1 \
+HEAVY_PROFILE_RPS=100,300,600,900,1200,2000 \
+HEAVY_STAGE_DURATION=2m \
+K6_CPUS=2 \
+K6_MEMORY=4g \
+bash benchmark/run_benchmark.sh 2>&1 | tee benchmark/results/last_run.log
+```
+
+### Перерисовать только latency-графики для готового прогона
+```bash
+python3.12 benchmark/scripts/analyze_k6_run.py \
+  --k6-json benchmark/results/<STAMP>/run-001/k6-metrics.json \
+  --out-dir benchmark/results/<STAMP>/run-001 \
+  --scenario heavy_overload_recovery \
+  --stage-duration 2m \
+  --profile-rps 100,300,600,900,1200,2000
+```
+
+### Какие артефакты должны появиться в `benchmark/results/<STAMP>/run-001`
+- `k6-summary.json`, `k6-metrics.json`
+- `latency_over_time.png`, `latency_percentiles.png`, `latency_histogram.png`
+- `latency_over_time_rps_100.png ... latency_over_time_rps_2000.png`
+- `resources-summary.json`
+- `resources_timeseries_app.csv`, `resources_timeseries_db.csv`
+- `resources_app_over_time.png`, `resources_db_over_time.png`
+
