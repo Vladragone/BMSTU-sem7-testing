@@ -52,16 +52,34 @@ integration_tests:
     - if [ -n "$DB_CID" ]; then docker exec -i "$DB_CID" psql -U "$TEST_DB_USER" -d "$TEST_DB_NAME" < project-root/src/test/resources/sql/clean.sql; fi
     - docker compose -f docker-compose.tests.yml down -v
 
-e2e_tests:
+e2e_mock_tests:
+  stage: e2e
+  script:
+    - docker compose -f docker-compose.tests.yml build tests
+    - docker compose -f docker-compose.tests.yml up -d db weather-mock
+    - docker compose -f docker-compose.tests.yml run --rm -e EXTERNAL_WEATHER_MODE=mock tests "./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=false -DskipITs=false -Dit.test='**/*WeatherMockE2ECase' -Dallure.results.directory=target/allure-results/e2e-mock -Dallure.skip=true verify"
+  artifacts:
+    when: always
+    paths:
+      - project-root/target/allure-results/e2e-mock
+      - project-root/target/failsafe-reports
+    reports:
+      junit: project-root/target/failsafe-reports/*.xml
+  after_script:
+    - DB_CID=$(docker compose -f docker-compose.tests.yml ps -q db)
+    - if [ -n "$DB_CID" ]; then docker exec -i "$DB_CID" psql -U "$TEST_DB_USER" -d "$TEST_DB_NAME" < project-root/src/test/resources/sql/clean.sql; fi
+    - docker compose -f docker-compose.tests.yml down -v
+
+e2e_real_tests:
   stage: e2e
   script:
     - docker compose -f docker-compose.tests.yml build tests
     - docker compose -f docker-compose.tests.yml up -d db
-    - docker compose -f docker-compose.tests.yml run --rm tests "./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=true -DskipITs=false -Dit.test='**/*E2ECase' -Dallure.results.directory=target/allure-results/e2e verify"
+    - docker compose -f docker-compose.tests.yml run --rm -e RUN_REAL_WEATHER_E2E=true -e EXTERNAL_WEATHER_MODE=real tests "./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipTests=false -DskipITs=false -Dit.test='**/*WeatherRealE2ECase' -Dallure.results.directory=target/allure-results/e2e-real -Dallure.skip=true verify"
   artifacts:
     when: always
     paths:
-      - project-root/target/allure-results/e2e
+      - project-root/target/allure-results/e2e-real
       - project-root/target/failsafe-reports
     reports:
       junit: project-root/target/failsafe-reports/*.xml
@@ -79,7 +97,10 @@ report:
     - job: integration_tests
       artifacts: true
       optional: true
-    - job: e2e_tests
+    - job: e2e_mock_tests
+      artifacts: true
+      optional: true
+    - job: e2e_real_tests
       artifacts: true
       optional: true
   when: always

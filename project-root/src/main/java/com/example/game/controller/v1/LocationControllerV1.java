@@ -2,8 +2,10 @@ package com.example.game.controller.v1;
 
 import com.example.game.dto.LocationRequestDTO;
 import com.example.game.dto.LocationResponseDTO;
+import com.example.game.dto.LocationWeatherResponseDTO;
 import com.example.game.model.Location;
 import com.example.game.service.interfaces.ILocationService;
+import com.example.game.service.interfaces.ILocationWeatherService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -19,9 +21,12 @@ import java.util.stream.Collectors;
 public class LocationControllerV1 {
 
     private final ILocationService locationService;
+    private final ILocationWeatherService locationWeatherService;
 
-    public LocationControllerV1(ILocationService locationService) {
+    public LocationControllerV1(ILocationService locationService,
+                                ILocationWeatherService locationWeatherService) {
         this.locationService = locationService;
+        this.locationWeatherService = locationWeatherService;
     }
 
     @Operation(summary = "Получить все локации")
@@ -82,6 +87,12 @@ public class LocationControllerV1 {
     public ResponseEntity<Void> deleteLocation(@PathVariable Long id) {
         locationService.deleteLocation(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Получить текущую погоду для локации из внешнего сервиса")
+    @GetMapping("/{id}/weather/current")
+    public ResponseEntity<LocationWeatherResponseDTO> getCurrentWeather(@PathVariable Long id) {
+        return ResponseEntity.ok(locationWeatherService.getCurrentWeatherByLocationId(id));
     }
 
     private LocationResponseDTO toResponseDto(Location entity) {

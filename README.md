@@ -140,3 +140,54 @@ python3.12 benchmark/scripts/analyze_k6_run.py \
 - `resources_timeseries_app.csv`, `resources_timeseries_db.csv`
 - `resources_app_over_time.png`, `resources_db_over_time.png`
 
+## Лабораторная работа №7 (Интеграция с внешним сервисом + Mock)
+В проект добавлен сценарий интеграции с внешним сервисом погоды Open-Meteo.
+
+Контракт внешнего API:
+- Open-Meteo Forecast API: `GET /v1/forecast`
+- Документация: https://open-meteo.com/en/docs
+- Используемые query-параметры: `latitude`, `longitude`, `current=temperature_2m,wind_speed_10m`
+
+### Реализованный endpoint в приложении
+- `GET /api/v1/locations/{id}/weather/current`
+- Возвращает текущую температуру/скорость ветра для координат выбранной локации.
+
+### Переключение mock/real через конфигурацию
+Используются параметры:
+- `external.weather.mode` (`mock` или `real`)
+- `external.weather.mock-base-url`
+- `external.weather.real-base-url`
+
+Через переменные окружения:
+- `EXTERNAL_WEATHER_MODE`
+- `EXTERNAL_WEATHER_MOCK_BASE_URL`
+- `EXTERNAL_WEATHER_REAL_BASE_URL`
+
+### Mock-сервер
+Mock реализован на WireMock:
+- маппинги: `project-root/mock/weather/mappings/current-weather.json`
+- в тестовом compose: сервис `weather-mock`
+
+### E2E сценарии ЛР7
+- `WeatherMockE2ECase` — проверка интеграции с mock-сервером
+- `WeatherRealE2ECase` — проверка интеграции с реальным Open-Meteo
+
+Локальный запуск:
+```bash
+cd project-root
+./scripts/run_lab7_e2e.sh mock
+./scripts/run_lab7_e2e.sh real
+```
+
+### CI pipeline
+В `.gitlab-ci.yml` добавлены отдельные job:
+- `e2e_mock_tests`
+- `e2e_real_tests`
+
+### Демонстрационное окружение
+Из корня репозитория:
+```bash
+docker compose -f docker-compose.lab7.mock.yml up --build
+docker compose -f docker-compose.lab7.real.yml up --build
+```
+

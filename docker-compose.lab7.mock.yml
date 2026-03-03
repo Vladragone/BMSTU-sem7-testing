@@ -1,10 +1,10 @@
-﻿services:
+services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: ${TEST_DB_NAME:-game_test}
-      POSTGRES_USER: ${TEST_DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${TEST_DB_PASS:-postgres}
+      POSTGRES_DB: game_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5433:5432"
     healthcheck:
@@ -20,30 +20,22 @@
     volumes:
       - ./project-root/mock/weather:/home/wiremock
 
-  tests:
+  app:
     build:
       context: ./project-root
-      dockerfile: Dockerfile.tests
+      dockerfile: Dockerfile.app
     depends_on:
       db:
         condition: service_healthy
       weather-mock:
         condition: service_started
     environment:
-      TEST_DB_HOST: db
-      TEST_DB_PORT: 5432
-      TEST_DB_NAME: ${TEST_DB_NAME:-game_test}
-      TEST_DB_USER: ${TEST_DB_USER:-postgres}
-      TEST_DB_PASS: ${TEST_DB_PASS:-postgres}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/game_test
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SERVER_ADDRESS: 0.0.0.0
+      EXTERNAL_WEATHER_MODE: mock
       EXTERNAL_WEATHER_MOCK_BASE_URL: http://weather-mock:8080
       EXTERNAL_WEATHER_REAL_BASE_URL: https://api.open-meteo.com
-    volumes:
-      - ./project-root:/app
-      - m2-cache:/app/.m2
-    working_dir: /app
-    entrypoint: ["/bin/bash", "-lc"]
-    command: "./scripts/wait-for-db.sh db 5432 60 && ./mvnw -B -DskipITs=true test"
-
-volumes:
-  m2-cache:
-    name: bmstu-m2-cache
+    ports:
+      - "8080:8080"

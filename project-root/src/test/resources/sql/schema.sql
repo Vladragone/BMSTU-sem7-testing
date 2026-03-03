@@ -34,3 +34,14 @@ CREATE TABLE IF NOT EXISTS game_session (
         REFERENCES location_groups (id)
         ON DELETE RESTRICT
 );
+
+CREATE TABLE IF NOT EXISTS game_locations (
+    id BIGSERIAL PRIMARY KEY,
+    lat DOUBLE PRECISION NOT NULL,
+    lng DOUBLE PRECISION NOT NULL,
+    group_id BIGINT NOT NULL,
+    CONSTRAINT fk_game_location_group
+        FOREIGN KEY (group_id)
+        REFERENCES location_groups (id)
+        ON DELETE RESTRICT
+);
