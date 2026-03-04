@@ -6,14 +6,13 @@ import com.example.game.model.Profile;
 import com.example.game.repository.ProfileRepository;
 import com.example.game.service.interfaces.IRatingService;
 import com.example.game.service.interfaces.ITokenParser;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class RatingService implements IRatingService {
@@ -30,41 +29,46 @@ public class RatingService implements IRatingService {
     @Transactional(readOnly = true)
     public RatingResponseDTO getSortedRatingAndRank(String token, String sortBy, int limit) {
         try {
-            String currentUsername = tokenParser.getUsername(token);
-            List<Profile> profiles = profileRepository.findAll();
-            if (profiles.isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.NO_CONTENT, "No profiles found");
-            }
-
-            Comparator<Profile> comparator = "games".equals(sortBy)
-                    ? Comparator.comparingInt(Profile::getGameNum)
-                    : Comparator.comparingInt(Profile::getScore);
-
-            List<Profile> sortedProfiles = profiles.stream()
-                    .sorted(comparator.reversed())
-                    .collect(Collectors.toList());
-
-            List<RatingUserDTO> topUsers = sortedProfiles.stream()
-                    .limit(limit)
-                    .map(this::toDto)
-                    .collect(Collectors.toList());
-
-            int rank = findUserRank(sortedProfiles, currentUsername);
-            if (rank <= 0) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found in rating");
-            }
-
-            // Добавляем ранги в DTO (по позиции)
-            for (int i = 0; i < topUsers.size(); i++) {
-                topUsers.get(i).setRank(i + 1);
-            }
-
-            return new RatingResponseDTO(topUsers, rank, sortBy);
+            return buildRatingResponse(token, sortBy, limit);
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error fetching ratings", e);
         }
+    }
+
+    private RatingResponseDTO buildRatingResponse(String token, String sortBy, int limit) {
+        String currentUsername = tokenParser.getUsername(token);
+        List<Profile> profiles = profileRepository.findAll();
+        if (profiles.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NO_CONTENT, "No profiles found");
+        }
+
+        List<Profile> sortedProfiles = sortProfiles(profiles, sortBy);
+        List<RatingUserDTO> topUsers = buildTopUsers(sortedProfiles, limit);
+        int rank = findUserRank(sortedProfiles, currentUsername);
+        if (rank <= 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found in rating");
+        }
+        setRanks(topUsers);
+        return new RatingResponseDTO(topUsers, rank, sortBy);
+    }
+
+    private List<Profile> sortProfiles(List<Profile> profiles, String sortBy) {
+        Comparator<Profile> comparator = "games".equals(sortBy)
+                ? Comparator.comparingInt(Profile::getGameNum)
+                : Comparator.comparingInt(Profile::getScore);
+
+        return profiles.stream()
+                .sorted(comparator.reversed())
+                .collect(Collectors.toList());
+    }
+
+    private List<RatingUserDTO> buildTopUsers(List<Profile> sortedProfiles, int limit) {
+        return sortedProfiles.stream()
+                .limit(limit)
+                .map(this::toDto)
+                .collect(Collectors.toList());
     }
 
     private RatingUserDTO toDto(Profile profile) {
@@ -83,5 +87,11 @@ public class RatingService implements IRatingService {
             }
         }
         return -1;
+    }
+
+    private void setRanks(List<RatingUserDTO> topUsers) {
+        for (int i = 0; i < topUsers.size(); i++) {
+            topUsers.get(i).setRank(i + 1);
+        }
     }
 }

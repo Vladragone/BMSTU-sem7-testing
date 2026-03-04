@@ -88,6 +88,27 @@ Pipeline находится в `.github/workflows/ci.yml` и запускает 
 - `project-root/src/test/resources/sql/schema.sql` — схема БД
 - `project-root/src/test/resources/sql/seed.sql` — начальные данные
 
+## Статический анализ и quality gate
+В проект добавлены проверки:
+- Cyclomatic complexity (PMD, максимум 10 на метод)
+- Halstead complexity (встроенный `HalsteadChecker`)
+- Code style (Checkstyle)
+
+Запуск всех проверок:
+```bash
+cd project-root
+./scripts/quality_gate.sh
+```
+
+### Pre-commit hook
+Чтобы проверка запускалась перед каждым коммитом:
+```bash
+cd project-root
+./scripts/install_git_hooks.sh
+```
+
+После этого commit будет блокироваться при падении quality gate (можно обойти только `git commit --no-verify`).
+
 ## Лабораторная работа №3 (Benchmark)
 Все команды выполнять из корня репозитория.
 

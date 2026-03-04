@@ -2,7 +2,6 @@ package com.example.game.service;
 
 import com.example.game.dto.LoginRequestDTO;
 import com.example.game.dto.TokenResponseDTO;
-import com.example.game.model.User;
 import com.example.game.repository.UserRepository;
 import com.example.game.service.interfaces.IAuthService;
 import com.example.game.util.JwtUtil;
