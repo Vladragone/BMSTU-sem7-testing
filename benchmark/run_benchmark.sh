@@ -16,6 +16,13 @@ BENCH_APP_PORT="${BENCH_APP_PORT:-18080}"
 BENCH_PROM_PORT="${BENCH_PROM_PORT:-19090}"
 BENCH_DB_PORT="${BENCH_DB_PORT:-15432}"
 BENCH_CADVISOR_PORT="${BENCH_CADVISOR_PORT:-18081}"
+BENCH_TRACING_ENABLED="${BENCH_TRACING_ENABLED:-false}"
+BENCH_TRACING_EXPORTER="${BENCH_TRACING_EXPORTER:-otlp}"
+BENCH_TRACING_SERVICE_NAME="${BENCH_TRACING_SERVICE_NAME:-game-bench-app}"
+BENCH_TRACING_SAMPLE_RATIO="${BENCH_TRACING_SAMPLE_RATIO:-1.0}"
+BENCH_LOG_LEVEL_WEB="${BENCH_LOG_LEVEL_WEB:-ERROR}"
+BENCH_LOG_LEVEL_APP="${BENCH_LOG_LEVEL_APP:-ERROR}"
+BENCH_LOG_LEVEL_HIBERNATE="${BENCH_LOG_LEVEL_HIBERNATE:-ERROR}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -46,7 +53,7 @@ case "$(uname -s)" in
     ;;
 esac
 
-STAMP="$(date +%Y%m%d-%H%M%S)"
+STAMP="${CAMPAIGN_STAMP:-$(date +%Y%m%d-%H%M%S)}"
 CAMPAIGN_DIR="$BENCH_DIR/results/$STAMP"
 mkdir -p "$CAMPAIGN_DIR"
 
@@ -69,6 +76,17 @@ cat >"$CAMPAIGN_DIR/campaign_config.json" <<EOF
     "prometheus_port": "$BENCH_PROM_PORT",
     "db_port": "$BENCH_DB_PORT",
     "cadvisor_port": "$BENCH_CADVISOR_PORT"
+  },
+  "observability": {
+    "tracing_enabled": "$BENCH_TRACING_ENABLED",
+    "tracing_exporter": "$BENCH_TRACING_EXPORTER",
+    "tracing_service_name": "$BENCH_TRACING_SERVICE_NAME",
+    "tracing_sample_ratio": "$BENCH_TRACING_SAMPLE_RATIO",
+    "logging_levels": {
+      "org.springframework.web": "$BENCH_LOG_LEVEL_WEB",
+      "com.example.game": "$BENCH_LOG_LEVEL_APP",
+      "org.hibernate": "$BENCH_LOG_LEVEL_HIBERNATE"
+    }
   }
 }
 EOF
@@ -84,6 +102,8 @@ for i in $(seq 1 "$RUNS"); do
   project="bmstu_lab3_${STAMP}_${i}"
   export COMPOSE_PROJECT_NAME="$project"
   export BENCH_APP_PORT BENCH_PROM_PORT BENCH_DB_PORT BENCH_CADVISOR_PORT
+  export BENCH_TRACING_ENABLED BENCH_TRACING_EXPORTER BENCH_TRACING_SERVICE_NAME BENCH_TRACING_SAMPLE_RATIO
+  export BENCH_LOG_LEVEL_WEB BENCH_LOG_LEVEL_APP BENCH_LOG_LEVEL_HIBERNATE
 
   echo ""
   echo "=== $run_id/$RUNS ==="
@@ -100,7 +120,7 @@ for i in $(seq 1 "$RUNS"); do
     docker compose -f "$COMPOSE_FILE" build app
   fi
 
-  docker compose -f "$COMPOSE_FILE" up -d db app cadvisor prometheus
+  docker compose -f "$COMPOSE_FILE" up -d db app cadvisor prometheus otel-collector
 
   wait_in_network() {
     local url="$1"
@@ -180,6 +200,11 @@ EOF
      [ ! -f "$run_dir/latency_histogram.png" ]; then
     echo "Missing latency artifacts in $run_dir"
     exit 1
+  fi
+
+  collector_cid="$(docker compose -f "$COMPOSE_FILE" ps -q otel-collector)"
+  if [ -n "$collector_cid" ]; then
+    docker cp "$collector_cid:/var/lib/otel/traces.jsonl" "$run_dir/traces-otel.jsonl" >/dev/null 2>&1 || true
   fi
 
   cleanup

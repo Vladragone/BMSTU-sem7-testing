@@ -7,7 +7,6 @@ usage() {
   echo "  -i  run integration tests"
   echo "  -e  run e2e tests"
   echo "  -r  generate Allure report and start local server"
-  echo "If no -u/-i/-e flags are provided, all stages run in order: unit -> integration -> e2e"
 }
 
 run_unit=false

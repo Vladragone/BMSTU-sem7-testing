@@ -3,6 +3,7 @@ stages:
   - unit
   - integration
   - e2e
+  - monitoring
   - report
 
 variables:
@@ -97,6 +98,21 @@ e2e_real_tests:
     - if [ -n "$DB_CID" ]; then docker exec -i "$DB_CID" psql -U "$TEST_DB_USER" -d "$TEST_DB_NAME" < project-root/src/test/resources/sql/clean.sql; fi
     - docker compose -f docker-compose.tests.yml down -v
 
+lab5_monitoring:
+  stage: monitoring
+  script:
+    - docker compose -f docker-compose.tests.yml build tests
+    - docker compose -f docker-compose.tests.yml up -d db
+    - docker compose -f docker-compose.tests.yml run --rm tests "sed -i 's/\r$//' mvnw scripts/*.sh && chmod +x mvnw scripts/*.sh && ./scripts/wait-for-db.sh db 5432 60 && ./scripts/run_lab5_ci_monitoring.sh"
+  artifacts:
+    when: always
+    paths:
+      - project-root/lab5-monitoring/ci
+  after_script:
+    - DB_CID=$(docker compose -f docker-compose.tests.yml ps -q db)
+    - if [ -n "$DB_CID" ]; then docker exec -i "$DB_CID" psql -U "$TEST_DB_USER" -d "$TEST_DB_NAME" < project-root/src/test/resources/sql/clean.sql; fi
+    - docker compose -f docker-compose.tests.yml down -v
+
 report:
   stage: report
   image: maven:3.9.6-eclipse-temurin-17
@@ -110,6 +126,9 @@ report:
       artifacts: true
       optional: true
     - job: e2e_real_tests
+      artifacts: true
+      optional: true
+    - job: lab5_monitoring
       artifacts: true
       optional: true
   when: always

@@ -23,13 +23,21 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SERVER_PORT: 8080
       SERVER_ADDRESS: 0.0.0.0
-      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB: ERROR
-      LOGGING_LEVEL_COM_EXAMPLE_GAME: ERROR
-      LOGGING_LEVEL_ORG_HIBERNATE: ERROR
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB: ${BENCH_LOG_LEVEL_WEB:-ERROR}
+      LOGGING_LEVEL_COM_EXAMPLE_GAME: ${BENCH_LOG_LEVEL_APP:-ERROR}
+      LOGGING_LEVEL_ORG_HIBERNATE: ${BENCH_LOG_LEVEL_HIBERNATE:-ERROR}
+      TRACING_ENABLED: ${BENCH_TRACING_ENABLED:-false}
+      TRACING_EXPORTER: ${BENCH_TRACING_EXPORTER:-otlp}
+      TRACING_OTLP_ENDPOINT: http://otel-collector:4317
+      TRACING_SERVICE_NAME: ${BENCH_TRACING_SERVICE_NAME:-game-bench-app}
+      TRACING_SAMPLE_RATIO: ${BENCH_TRACING_SAMPLE_RATIO:-1.0}
     ports:
       - "${BENCH_APP_PORT:-18080}:8080"
     cpus: "1.5"
     mem_limit: 768m
+    depends_on:
+      - db
+      - otel-collector
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
@@ -56,3 +64,15 @@ services:
       - cadvisor
     cpus: "0.5"
     mem_limit: 256m
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.112.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel/collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+      - otel-data:/var/lib/otel
+    cpus: "0.5"
+    mem_limit: 256m
+
+volumes:
+  otel-data:

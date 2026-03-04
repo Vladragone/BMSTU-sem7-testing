@@ -212,3 +212,45 @@ docker compose -f docker-compose.lab7.mock.yml up --build
 docker compose -f docker-compose.lab7.real.yml up --build
 ```
 
+## Лабораторная работа №5 (Трассировка/мониторинг/логирование)
+В проект добавлена интеграция OpenTelemetry и сценарии сравнения ресурсов для 4 профилей:
+- `baseline` (tracing off, logging default)
+- `tracing` (tracing on, logging default)
+- `logging_extended` (tracing off, logging extended)
+- `tracing_logging_extended` (tracing on, logging extended)
+
+### Что интегрировано
+- OpenTelemetry SDK в backend (`TRACING_ENABLED=true|false`)
+- Экспорт трасс:
+  - `TRACING_EXPORTER=otlp` (в OTEL Collector)
+  - `TRACING_EXPORTER=logging` (в stdout, удобно для CI)
+- HTTP-трассировка входящих запросов фильтром `HttpTracingFilter`
+- Trace/span id добавляются в формат логов
+
+### Benchmark-сравнение ЛР5
+Из корня репозитория:
+```bash
+chmod +x benchmark/run_lab5_benchmark_matrix.sh
+RUNS_PER_PROFILE=3 bash benchmark/run_lab5_benchmark_matrix.sh
+```
+
+Артефакты:
+- `benchmark/results/<matrix-stamp>/lab5_benchmark_summary.json`
+- `benchmark/results/<matrix-stamp>/lab5_benchmark_comparison.csv`
+- `benchmark/results/<matrix-stamp>/lab5_benchmark_report.md`
+
+Также для каждого прогона профиля сохраняются:
+- `resources-summary.json`, `resources_timeseries_*.csv`, PNG-графики CPU/RAM
+- `traces-otel.jsonl` (если tracing включен и экспорт в OTLP)
+
+### CI/CD мониторинг тестов ЛР5
+В `.gitlab-ci.yml` добавлен job `lab5_monitoring`, который:
+- запускает одинаковый IT сценарий в 4 профилях
+- измеряет CPU time (`user/system`) и память (`max_rss_kb`) через `time`
+- формирует сравнение:
+  - `project-root/lab5-monitoring/ci/<stamp>/lab5_ci_monitoring.json`
+  - `project-root/lab5-monitoring/ci/<stamp>/lab5_ci_monitoring.csv`
+  - `project-root/lab5-monitoring/ci/<stamp>/lab5_ci_monitoring_report.md`
+
+Это позволяет сравнить ресурсы с трассировкой/без трассировки и с логированием по умолчанию/расширенным.
+
