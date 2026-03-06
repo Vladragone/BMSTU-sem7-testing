@@ -17,6 +17,7 @@ import org.springframework.test.context.jdbc.Sql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -48,6 +49,10 @@ class WeatherMockE2ECase {
         assertEquals(21.5, response.getBody().getTemperatureC(), 0.001);
         assertEquals(12.3, response.getBody().getWindSpeedKmh(), 0.001);
         assertEquals("2026-03-02T12:00", response.getBody().getObservedAt());
+        assertTrue(response.getBody().getIsDay());
+        assertEquals("day", response.getBody().getDayPhase());
+        assertEquals(3, response.getBody().getWeatherCode());
+        assertEquals("cloudy", response.getBody().getWeatherCondition());
     }
 
     private LocationGroupResponseDTO createGroup(String baseUrl, String name) {

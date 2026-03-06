@@ -143,6 +143,26 @@ K6_MEMORY=4g \
 bash benchmark/run_benchmark.sh 2>&1 | tee benchmark/results/last_run.log
 ```
 
+### Сравнение двух GC (два прогона + оверлей-графики)
+```bash
+RUNS=1 \
+GC_OLD_LABEL=old_gc \
+GC_NEW_LABEL=new_gc \
+GC_OLD_OPTS="-XX:+UseG1GC" \
+GC_NEW_OPTS="-XX:+UseZGC" \
+ONLY_HEAVY=1 \
+HEAVY_PROFILE_RPS=100,300,600,900,1200,2000 \
+HEAVY_STAGE_DURATION=2m \
+K6_CPUS=2 \
+K6_MEMORY=4g \
+bash benchmark/run_benchmark_gc_compare.sh
+```
+
+Результаты сравнения:
+- `benchmark/results/<BASE_STAMP>_old_gc`
+- `benchmark/results/<BASE_STAMP>_new_gc`
+- `benchmark/results/<BASE_STAMP>_compare/run-001/*.png` (графики с 2 линиями: old/new)
+
 ### Перерисовать только latency-графики для готового прогона
 ```bash
 python3.12 benchmark/scripts/analyze_k6_run.py \
@@ -167,11 +187,11 @@ python3.12 benchmark/scripts/analyze_k6_run.py \
 Контракт внешнего API:
 - Open-Meteo Forecast API: `GET /v1/forecast`
 - Документация: https://open-meteo.com/en/docs
-- Используемые query-параметры: `latitude`, `longitude`, `current=temperature_2m,wind_speed_10m`
+- Используемые query-параметры: `latitude`, `longitude`, `current=temperature_2m,wind_speed_10m,is_day,weather_code`
 
 ### Реализованный endpoint в приложении
 - `GET /api/v1/locations/{id}/weather/current`
-- Возвращает текущую температуру/скорость ветра для координат выбранной локации.
+- Возвращает текущую температуру, день/ночь и код погодного состояния для координат выбранной локации.
 
 ### Переключение mock/real через конфигурацию
 Используются параметры:

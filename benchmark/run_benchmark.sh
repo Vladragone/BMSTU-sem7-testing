@@ -7,11 +7,14 @@ LOGIN_VUS="${LOGIN_VUS:-80}"
 STABLE_RATE="${STABLE_RATE:-60}"
 OVERLOAD_RATE="${OVERLOAD_RATE:-140}"
 ONLY_HEAVY="${ONLY_HEAVY:-1}"
-HEAVY_PROFILE_RPS="${HEAVY_PROFILE_RPS:-100,300,600,900,1200,2000}"
-HEAVY_STAGE_DURATION="${HEAVY_STAGE_DURATION:-2m}"
+HEAVY_PROFILE_RPS="${HEAVY_PROFILE_RPS:-100,300,600,900,1200}"
+HEAVY_STAGE_DURATION="${HEAVY_STAGE_DURATION:-90s}"
+HEAVY_FINAL_DRAIN_DURATION="${HEAVY_FINAL_DRAIN_DURATION:-120s}"
+HEAVY_TRANSITION_DURATION="${HEAVY_TRANSITION_DURATION:-1s}"
 REBUILD_IMAGE_EACH_RUN="${REBUILD_IMAGE_EACH_RUN:-1}"
 K6_CPUS="${K6_CPUS:-1.0}"
 K6_MEMORY="${K6_MEMORY:-512m}"
+K6_DISABLE_THRESHOLDS="${K6_DISABLE_THRESHOLDS:-0}"
 BENCH_APP_PORT="${BENCH_APP_PORT:-18080}"
 BENCH_PROM_PORT="${BENCH_PROM_PORT:-19090}"
 BENCH_DB_PORT="${BENCH_DB_PORT:-15432}"
@@ -23,6 +26,7 @@ BENCH_TRACING_SAMPLE_RATIO="${BENCH_TRACING_SAMPLE_RATIO:-1.0}"
 BENCH_LOG_LEVEL_WEB="${BENCH_LOG_LEVEL_WEB:-ERROR}"
 BENCH_LOG_LEVEL_APP="${BENCH_LOG_LEVEL_APP:-ERROR}"
 BENCH_LOG_LEVEL_HIBERNATE="${BENCH_LOG_LEVEL_HIBERNATE:-ERROR}"
+BENCH_JAVA_TOOL_OPTIONS="${BENCH_JAVA_TOOL_OPTIONS:-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -46,6 +50,35 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
+duration_to_seconds() {
+  local v="$1"
+  if [[ "$v" =~ ^[0-9]+$ ]]; then
+    echo "$v"
+    return 0
+  fi
+  if [[ "$v" =~ ^([0-9]+)s$ ]]; then
+    echo "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  if [[ "$v" =~ ^([0-9]+)m$ ]]; then
+    echo "$(( ${BASH_REMATCH[1]} * 60 ))"
+    return 0
+  fi
+  if [[ "$v" =~ ^([0-9]+)h$ ]]; then
+    echo "$(( ${BASH_REMATCH[1]} * 3600 ))"
+    return 0
+  fi
+  echo "Unsupported duration format: $v" >&2
+  exit 1
+}
+
+HEAVY_STAGE_SECONDS="$(duration_to_seconds "$HEAVY_STAGE_DURATION")"
+HEAVY_FINAL_DRAIN_SECONDS="$(duration_to_seconds "$HEAVY_FINAL_DRAIN_DURATION")"
+HEAVY_TRANSITION_SECONDS="$(duration_to_seconds "$HEAVY_TRANSITION_DURATION")"
+HEAVY_PROFILE_COUNT="$(awk -F',' '{print NF}' <<< "$HEAVY_PROFILE_RPS")"
+HEAVY_TRANSITIONS_TOTAL="$HEAVY_PROFILE_COUNT"
+HEAVY_DRAIN_START_SECONDS="$((HEAVY_PROFILE_COUNT * HEAVY_STAGE_SECONDS + HEAVY_TRANSITIONS_TOTAL * HEAVY_TRANSITION_SECONDS))"
+
 DOCKER_RUN_ENV=()
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*)
@@ -57,6 +90,17 @@ STAMP="${CAMPAIGN_STAMP:-$(date +%Y%m%d-%H%M%S)}"
 CAMPAIGN_DIR="$BENCH_DIR/results/$STAMP"
 mkdir -p "$CAMPAIGN_DIR"
 
+sanitize_compose_name() {
+  local raw="$1"
+  local out
+  out="$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9_-]+/_/g')"
+  out="${out#_}"
+  if [[ ! "$out" =~ ^[a-z0-9] ]]; then
+    out="b${out}"
+  fi
+  echo "$out"
+}
+
 cat >"$CAMPAIGN_DIR/campaign_config.json" <<EOF
 {
   "runs": $RUNS,
@@ -67,9 +111,16 @@ cat >"$CAMPAIGN_DIR/campaign_config.json" <<EOF
   "only_heavy": $ONLY_HEAVY,
   "heavy_profile_rps": "$HEAVY_PROFILE_RPS",
   "heavy_stage_duration": "$HEAVY_STAGE_DURATION",
+  "heavy_final_drain_duration": "$HEAVY_FINAL_DRAIN_DURATION",
+  "heavy_transition_duration": "$HEAVY_TRANSITION_DURATION",
+  "heavy_drain_start_seconds": $HEAVY_DRAIN_START_SECONDS,
+  "heavy_final_drain_seconds": $HEAVY_FINAL_DRAIN_SECONDS,
   "k6_limits": {
     "cpus": "$K6_CPUS",
     "memory": "$K6_MEMORY"
+  },
+  "k6_runtime": {
+    "disable_thresholds": "$K6_DISABLE_THRESHOLDS"
   },
   "component_limits": {
     "app_port": "$BENCH_APP_PORT",
@@ -86,7 +137,8 @@ cat >"$CAMPAIGN_DIR/campaign_config.json" <<EOF
       "org.springframework.web": "$BENCH_LOG_LEVEL_WEB",
       "com.example.game": "$BENCH_LOG_LEVEL_APP",
       "org.hibernate": "$BENCH_LOG_LEVEL_HIBERNATE"
-    }
+    },
+    "java_tool_options": "$BENCH_JAVA_TOOL_OPTIONS"
   }
 }
 EOF
@@ -99,11 +151,12 @@ for i in $(seq 1 "$RUNS"); do
   run_dir="$CAMPAIGN_DIR/$run_id"
   mkdir -p "$run_dir"
 
-  project="bmstu_lab3_${STAMP}_${i}"
+  project="$(sanitize_compose_name "bmstu_lab3_${STAMP}_${i}")"
   export COMPOSE_PROJECT_NAME="$project"
   export BENCH_APP_PORT BENCH_PROM_PORT BENCH_DB_PORT BENCH_CADVISOR_PORT
   export BENCH_TRACING_ENABLED BENCH_TRACING_EXPORTER BENCH_TRACING_SERVICE_NAME BENCH_TRACING_SAMPLE_RATIO
   export BENCH_LOG_LEVEL_WEB BENCH_LOG_LEVEL_APP BENCH_LOG_LEVEL_HIBERNATE
+  export BENCH_JAVA_TOOL_OPTIONS
 
   echo ""
   echo "=== $run_id/$RUNS ==="
@@ -140,6 +193,9 @@ for i in $(seq 1 "$RUNS"); do
   wait_in_network "http://app:8080/api/v1/location-groups" 180
   wait_in_network "http://prometheus:9090/-/ready" 120
 
+  app_cid="$(docker compose -f "$COMPOSE_FILE" ps -q app)"
+  db_cid="$(docker compose -f "$COMPOSE_FILE" ps -q db)"
+
   run_start="$(date +%s)"
   "${DOCKER_RUN_ENV[@]}" docker run --rm \
     --cpus="$K6_CPUS" \
@@ -153,6 +209,9 @@ for i in $(seq 1 "$RUNS"); do
     -e ONLY_HEAVY="$ONLY_HEAVY" \
     -e HEAVY_PROFILE_RPS="$HEAVY_PROFILE_RPS" \
     -e HEAVY_STAGE_DURATION="$HEAVY_STAGE_DURATION" \
+    -e HEAVY_FINAL_DRAIN_DURATION="$HEAVY_FINAL_DRAIN_DURATION" \
+    -e HEAVY_TRANSITION_DURATION="$HEAVY_TRANSITION_DURATION" \
+    -e K6_DISABLE_THRESHOLDS="$K6_DISABLE_THRESHOLDS" \
     -v "$REPO_ROOT:/workspace" \
     grafana/k6:0.53.0 run \
     /workspace/benchmark/k6/lab3_scenarios.js \
@@ -177,11 +236,16 @@ EOF
     --start "$run_start" \
     --end "$run_end" \
     --services app db \
+    --compose-project "$project" \
+    --container-id "app=$app_cid" \
+    --container-id "db=$db_cid" \
     --out "$run_dir/resources-summary.json"
 
   if [ ! -f "$run_dir/resources-summary.json" ] || \
-     [ ! -f "$run_dir/resources_app_over_time.png" ] || \
-     [ ! -f "$run_dir/resources_db_over_time.png" ] || \
+     [ ! -f "$run_dir/resources_app_cpu_over_time.png" ] || \
+     [ ! -f "$run_dir/resources_app_ram_over_time.png" ] || \
+     [ ! -f "$run_dir/resources_db_cpu_over_time.png" ] || \
+     [ ! -f "$run_dir/resources_db_ram_over_time.png" ] || \
      [ ! -f "$run_dir/resources_timeseries_app.csv" ] || \
      [ ! -f "$run_dir/resources_timeseries_db.csv" ]; then
     echo "Missing Prometheus resource artifacts in $run_dir"
@@ -193,7 +257,9 @@ EOF
     --out-dir "$run_dir" \
     --scenario heavy_overload_recovery \
     --stage-duration "$HEAVY_STAGE_DURATION" \
-    --profile-rps "$HEAVY_PROFILE_RPS"
+    --profile-rps "$HEAVY_PROFILE_RPS" \
+    --transition-seconds "$HEAVY_TRANSITION_SECONDS" \
+    --drain-start-seconds "$HEAVY_DRAIN_START_SECONDS"
 
   if [ ! -f "$run_dir/latency_over_time.png" ] || \
      [ ! -f "$run_dir/latency_percentiles.png" ] || \

@@ -14,8 +14,6 @@ services:
     build:
       context: ../project-root
       dockerfile: Dockerfile.app
-    depends_on:
-      - db
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/game_bench
       SPRING_DATASOURCE_USERNAME: postgres
@@ -31,6 +29,7 @@ services:
       TRACING_OTLP_ENDPOINT: http://otel-collector:4317
       TRACING_SERVICE_NAME: ${BENCH_TRACING_SERVICE_NAME:-game-bench-app}
       TRACING_SAMPLE_RATIO: ${BENCH_TRACING_SAMPLE_RATIO:-1.0}
+      JAVA_TOOL_OPTIONS: ${BENCH_JAVA_TOOL_OPTIONS:-}
     ports:
       - "${BENCH_APP_PORT:-18080}:8080"
     cpus: "1.5"

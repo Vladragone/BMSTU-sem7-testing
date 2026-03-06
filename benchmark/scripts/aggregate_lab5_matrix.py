@@ -49,17 +49,21 @@ def write_csv(path: Path, rows):
         "profile",
         "campaign_dir",
         "http_p95_ms",
+        "http_p99_ms",
+        "http_failed_rate",
         "http_p95_delta_ms",
         "http_p95_delta_pct",
         "app_cpu_median",
+        "db_cpu_median",
         "app_cpu_delta",
         "app_cpu_delta_pct",
         "app_ram_median_bytes",
+        "db_ram_median_bytes",
         "app_ram_delta_bytes",
         "app_ram_delta_pct",
     ]
     with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
+        w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         w.writeheader()
         w.writerows(rows)
 

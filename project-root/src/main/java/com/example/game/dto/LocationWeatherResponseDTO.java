@@ -6,6 +6,10 @@ public class LocationWeatherResponseDTO {
     private String observedAt;
     private Double temperatureC;
     private Double windSpeedKmh;
+    private Boolean isDay;
+    private String dayPhase;
+    private Integer weatherCode;
+    private String weatherCondition;
 
     public Long getLocationId() {
         return locationId;
@@ -45,5 +49,37 @@ public class LocationWeatherResponseDTO {
 
     public void setWindSpeedKmh(Double windSpeedKmh) {
         this.windSpeedKmh = windSpeedKmh;
+    }
+
+    public Boolean getIsDay() {
+        return isDay;
+    }
+
+    public void setIsDay(Boolean isDay) {
+        this.isDay = isDay;
+    }
+
+    public String getDayPhase() {
+        return dayPhase;
+    }
+
+    public void setDayPhase(String dayPhase) {
+        this.dayPhase = dayPhase;
+    }
+
+    public Integer getWeatherCode() {
+        return weatherCode;
+    }
+
+    public void setWeatherCode(Integer weatherCode) {
+        this.weatherCode = weatherCode;
+    }
+
+    public String getWeatherCondition() {
+        return weatherCondition;
+    }
+
+    public void setWeatherCondition(String weatherCondition) {
+        this.weatherCondition = weatherCondition;
     }
 }

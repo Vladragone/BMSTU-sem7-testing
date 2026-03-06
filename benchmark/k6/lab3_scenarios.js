@@ -8,11 +8,14 @@ const loginVus = Number(__ENV.LOGIN_VUS || 80);
 const stableRate = Number(__ENV.STABLE_RATE || 60);
 const overloadRate = Number(__ENV.OVERLOAD_RATE || 140);
 const onlyHeavy = String(__ENV.ONLY_HEAVY || "0") === "1";
-const heavyProfileRps = (__ENV.HEAVY_PROFILE_RPS || "100,300,600,900,1200,2000")
+const disableThresholds = String(__ENV.K6_DISABLE_THRESHOLDS || "0") === "1";
+const heavyProfileRps = (__ENV.HEAVY_PROFILE_RPS || "100,300,600,900,1200")
   .split(",")
   .map((x) => Number(String(x).trim()))
   .filter((x) => Number.isFinite(x) && x > 0);
-const heavyStageDuration = __ENV.HEAVY_STAGE_DURATION || "2m";
+const heavyStageDuration = __ENV.HEAVY_STAGE_DURATION || "90s";
+const heavyFinalDrainDuration = __ENV.HEAVY_FINAL_DRAIN_DURATION || "120s";
+const heavyTransitionDuration = __ENV.HEAVY_TRANSITION_DURATION || "1s";
 
 const loginLatencyMs = new Trend("login_latency_ms");
 const ratingLatencyMs = new Trend("rating_latency_ms");
@@ -20,9 +23,15 @@ const writeLatencyMs = new Trend("write_latency_ms");
 
 function buildHeavyStages() {
   const stages = [];
-  for (const r of heavyProfileRps) {
+  for (let i = 0; i < heavyProfileRps.length; i += 1) {
+    const r = heavyProfileRps[i];
+    if (i > 0) {
+      stages.push({ target: r, duration: heavyTransitionDuration });
+    }
     stages.push({ target: r, duration: heavyStageDuration });
   }
+  stages.push({ target: 0, duration: heavyTransitionDuration });
+  stages.push({ target: 0, duration: heavyFinalDrainDuration });
   return stages;
 }
 
@@ -37,6 +46,7 @@ export const options = {
       preAllocatedVUs: 100,
       maxVUs: 3000,
       exec: "heavyWriteScenario",
+      gracefulStop: "30m",
       stages: buildHeavyStages(),
     },
   } : {
@@ -65,10 +75,11 @@ export const options = {
       maxVUs: 3000,
       exec: "heavyWriteScenario",
       startTime: "6m",
+      gracefulStop: "30m",
       stages: buildHeavyStages(),
     },
   },
-  thresholds: {
+  thresholds: disableThresholds ? {} : {
     http_req_failed: ["rate<0.05"],
     http_req_duration: ["p(95)<3000"],
     login_latency_ms: ["p(95)<3000"],

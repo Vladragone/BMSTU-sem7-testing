@@ -3,6 +3,7 @@ import argparse
 import csv
 import datetime as dt
 import json
+import re
 import statistics
 import urllib.parse
 import urllib.request
@@ -79,15 +80,91 @@ def fetch_range(prom_url: str, query: str, start: int, end: int, step: str = "5s
     return payload.get("data", {}).get("result", [])
 
 
-def fetch_metric_with_fallback(prom_url: str, metric_name: str, service: str, start: int, end: int):
+def fetch_metric_with_fallback(
+    prom_url: str,
+    metric_name: str,
+    service: str,
+    compose_project: str,
+    container_id: str,
+    start: int,
+    end: int,
+):
     cfg = METRICS[metric_name]
     metric = cfg["metric"]
 
+    def match_service(labels):
+        svc = service.lower()
+        project = (compose_project or "").lower()
+        cid = (container_id or "").lower()
+
+        compose_service = str(labels.get("container_label_com_docker_compose_service", "")).lower()
+        compose_project_label = str(labels.get("container_label_com_docker_compose_project", "")).lower()
+
+        # Strongest match: exact compose project + exact service.
+        if project and compose_project_label == project and compose_service == svc:
+            return True
+
+        # If project isn't available in labels, still accept exact service match.
+        if compose_service == svc and (not project or not compose_project_label):
+            return True
+
+        # Strong fallback by container id fragment if available.
+        if cid:
+            for key in ("id", "name", "container"):
+                v = str(labels.get(key, "")).lower()
+                if cid in v:
+                    return True
+
+        # Fallback heuristic by common container labels.
+        candidates = [
+            labels.get("name", ""),
+            labels.get("container", ""),
+            labels.get("id", ""),
+            labels.get("image", ""),
+        ]
+        if project:
+            scoped_pattern = re.compile(rf"{re.escape(project)}.*(^|[-_/\.]){re.escape(svc)}($|[-_/\.])")
+            for c in candidates:
+                v = str(c).lower()
+                if scoped_pattern.search(v):
+                    return True
+        pattern = re.compile(rf"(^|[-_/\.]){re.escape(svc)}($|[-_/\.])")
+        for c in candidates:
+            v = str(c).lower()
+            if pattern.search(v):
+                return True
+        return False
+
+    queries = []
+    if cfg["rate"]:
+        queries.append(f"rate({metric}[30s])")
+        queries.append(f"rate({metric}{{container!=\"\"}}[30s])")
+    else:
+        queries.append(metric)
+        queries.append(f"{metric}{{container!=\"\"}}")
+
+    # Try direct matcher-based queries first, then generic + client-side filtering.
     for expr in _query_candidates(metric, service, cfg["rate"]):
-        query = f"({expr}) * {cfg['scale']}" if cfg["scale"] != 1.0 else expr
+        q = f"({expr}) * {cfg['scale']}" if cfg["scale"] != 1.0 else expr
+        queries.append(q)
+
+    for query in queries:
         result = fetch_range(prom_url, query, start, end)
-        if result:
-            return result
+        if not result:
+            continue
+        filtered = [s for s in result if match_service(s.get("metric", {}))]
+        if filtered:
+            if cfg["scale"] != 1.0 and query in (f"rate({metric}[30s])", f"rate({metric}{{container!=\"\"}}[30s])", metric, f"{metric}{{container!=\"\"}}"):
+                # Apply scale on values if expression wasn't multiplied in PromQL.
+                for series in filtered:
+                    new_values = []
+                    for ts, raw_value in series.get("values", []):
+                        try:
+                            new_values.append([ts, str(float(raw_value) * cfg["scale"])])
+                        except ValueError:
+                            new_values.append([ts, raw_value])
+                    series["values"] = new_values
+            return filtered
     return []
 
 
@@ -128,32 +205,24 @@ def write_service_csv(path: Path, rows):
             )
 
 
-def plot_service_graph(path: Path, service: str, rows):
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), dpi=140, sharex=True)
-    ax1.set_title(f"Resource Utilization Over Time ({service})")
-    ax1.set_ylabel("CPU % / RAM MB")
-    ax2.set_xlabel("Time")
-    ax2.set_ylabel("Bytes per second")
-    ax1.grid(True, alpha=0.3)
-    ax2.grid(True, alpha=0.3)
+def plot_service_metric(path: Path, service: str, rows, metric_key: str, title: str, y_label: str, color: str):
+    fig, ax = plt.subplots(figsize=(14, 5), dpi=140)
+    ax.set_title(title)
+    ax.set_xlabel("Time")
+    ax.set_ylabel(y_label)
+    ax.grid(True, alpha=0.3)
 
     if rows:
         x = [dt.datetime.fromisoformat(r["timestamp"]) for r in rows]
-        cpu = [r.get("cpu_percent") or 0.0 for r in rows]
-        ram_mb = [(r.get("ram_bytes") or 0.0) / (1024 * 1024) for r in rows]
-        disk_r = [r.get("disk_read_bytes_per_s") or 0.0 for r in rows]
-        disk_w = [r.get("disk_write_bytes_per_s") or 0.0 for r in rows]
-
-        ax1.plot(x, cpu, label="CPU %", color="#1f77b4", linewidth=1.2)
-        ax1.plot(x, ram_mb, label="RAM MB", color="#ff7f0e", linewidth=1.2)
-        ax2.plot(x, disk_r, label="Disk read B/s", color="#2ca02c", linewidth=1.2)
-        ax2.plot(x, disk_w, label="Disk write B/s", color="#d62728", linewidth=1.2)
-        ax1.legend()
-        ax2.legend()
+        if metric_key == "ram_mb":
+            y = [(r.get("ram_bytes") or 0.0) / (1024 * 1024) for r in rows]
+        else:
+            y = [r.get(metric_key) or 0.0 for r in rows]
+        ax.plot(x, y, label=y_label, color=color, linewidth=1.4)
+        ax.legend()
         fig.autofmt_xdate(rotation=20)
     else:
-        ax1.text(0.5, 0.5, "No data from Prometheus for this service", ha="center", va="center", transform=ax1.transAxes)
-        ax2.text(0.5, 0.5, "No data from Prometheus for this service", ha="center", va="center", transform=ax2.transAxes)
+        ax.text(0.5, 0.5, "No data from Prometheus for this service", ha="center", va="center", transform=ax.transAxes)
 
     fig.tight_layout()
     fig.savefig(path)
@@ -166,11 +235,19 @@ def main():
     parser.add_argument("--start", type=int, required=True)
     parser.add_argument("--end", type=int, required=True)
     parser.add_argument("--services", nargs="+", default=["app", "db"])
+    parser.add_argument("--compose-project", default="")
+    parser.add_argument("--container-id", action="append", default=[])
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
     out_path = Path(args.out)
     run_dir = out_path.parent
+    container_id_by_service = {}
+    for item in args.container_id:
+        if "=" not in item:
+            continue
+        svc, cid = item.split("=", 1)
+        container_id_by_service[svc.strip()] = cid.strip().lower()
 
     report = {
         "start_unix": args.start,
@@ -183,7 +260,15 @@ def main():
         summary_by_metric = {}
 
         for metric_name in METRICS.keys():
-            raw_series = fetch_metric_with_fallback(args.prom_url, metric_name, service, args.start, args.end)
+            raw_series = fetch_metric_with_fallback(
+                args.prom_url,
+                metric_name,
+                service,
+                args.compose_project,
+                container_id_by_service.get(service, ""),
+                args.start,
+                args.end,
+            )
             collapsed = collapse_series(raw_series)
             series_by_metric[metric_name] = collapsed
             summary_by_metric[metric_name] = summarize([v for _, v in collapsed])
@@ -207,7 +292,24 @@ def main():
             rows.append(row)
 
         write_service_csv(run_dir / f"resources_timeseries_{service}.csv", rows)
-        plot_service_graph(run_dir / f"resources_{service}_over_time.png", service, rows)
+        plot_service_metric(
+            run_dir / f"resources_{service}_cpu_over_time.png",
+            service,
+            rows,
+            "cpu_percent",
+            f"CPU Utilization Over Time ({service})",
+            "CPU, %",
+            "#1f77b4",
+        )
+        plot_service_metric(
+            run_dir / f"resources_{service}_ram_over_time.png",
+            service,
+            rows,
+            "ram_mb",
+            f"RAM Utilization Over Time ({service})",
+            "RAM, MB",
+            "#ff7f0e",
+        )
 
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)

@@ -137,7 +137,17 @@ def write_histogram_csv(path, durations, bins=40):
     return edges, counts
 
 
-def plot_latency_over_time(path, per_second, title):
+def build_stage_markers(profile_rps, stage_duration_seconds, transition_seconds):
+    markers = []
+    offset = 0
+    for i, rps in enumerate(profile_rps):
+        markers.append((offset, f"RPS {rps}"))
+        if i < len(profile_rps) - 1:
+            offset += stage_duration_seconds + transition_seconds
+    return markers
+
+
+def plot_latency_over_time(path, per_second, title, drain_start_seconds=None, stage_markers=None):
     ts_sorted = sorted(per_second.keys())
     if not ts_sorted:
         return
@@ -154,6 +164,20 @@ def plot_latency_over_time(path, per_second, title):
     ax.set_xlabel("Time")
     ax.set_ylabel("Latency, ms")
     ax.grid(True, alpha=0.3)
+    if stage_markers:
+        y_top = max(p95) if p95 else 0
+        for sec, label in stage_markers:
+            idx = int(sec)
+            if 0 <= idx < len(ts_sorted):
+                t = ts_sorted[idx]
+                ax.axvline(t, color="#6c757d", linestyle=":", linewidth=1.1, alpha=0.9)
+                ax.text(t, y_top, label, rotation=90, va="bottom", ha="center", fontsize=8, color="#495057")
+    if drain_start_seconds is not None and ts_sorted:
+        marker_idx = int(drain_start_seconds)
+        if 0 <= marker_idx < len(ts_sorted):
+            drain_ts = ts_sorted[marker_idx]
+            ax.axvline(drain_ts, color="red", linestyle="--", linewidth=1.5, label="drain start")
+            ax.scatter([drain_ts], [p95[marker_idx]], color="red", s=20, zorder=5)
     ax.legend()
     fig.autofmt_xdate(rotation=20)
     fig.tight_layout()
@@ -225,8 +249,11 @@ def main():
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--scenario", default="heavy_overload_recovery")
     parser.add_argument("--drop-warmup-seconds", type=int, default=0)
-    parser.add_argument("--stage-duration", default="2m")
-    parser.add_argument("--profile-rps", default="100,300,600,900,1200,2000")
+    parser.add_argument("--stage-duration", default="90s")
+    parser.add_argument("--profile-rps", default="100,300,600,900,1200")
+    parser.add_argument("--transition-seconds", type=int, default=1)
+    parser.add_argument("--drain-start-seconds", type=int, default=None)
+    parser.add_argument("--plot-stage-graphs", action="store_true")
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -237,13 +264,22 @@ def main():
     write_percentiles_csv(out_dir / "latency_percentiles.csv", durations)
     write_histogram_csv(out_dir / "latency_histogram.csv", durations)
 
-    plot_latency_over_time(out_dir / "latency_over_time.png", per_second, f"Latency Over Time ({args.scenario})")
+    profile_rps = [int(x.strip()) for x in args.profile_rps.split(",") if x.strip()]
+    stage_duration_seconds = parse_duration_seconds(args.stage_duration)
+    stage_markers = build_stage_markers(profile_rps, stage_duration_seconds, args.transition_seconds)
+
+    plot_latency_over_time(
+        out_dir / "latency_over_time.png",
+        per_second,
+        f"Latency Over Time ({args.scenario})",
+        drain_start_seconds=args.drain_start_seconds,
+        stage_markers=stage_markers,
+    )
     plot_percentiles(out_dir / "latency_percentiles.png", durations)
     plot_histogram(out_dir / "latency_histogram.png", durations)
 
-    profile_rps = [int(x.strip()) for x in args.profile_rps.split(",") if x.strip()]
-    stage_duration_seconds = parse_duration_seconds(args.stage_duration)
-    plot_stage_graphs(out_dir, per_second, args.scenario, stage_duration_seconds, profile_rps)
+    if args.plot_stage_graphs:
+        plot_stage_graphs(out_dir, per_second, args.scenario, stage_duration_seconds, profile_rps)
 
 
 if __name__ == "__main__":

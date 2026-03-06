@@ -52,6 +52,12 @@ class WeatherRealE2ECase {
         assertNotNull(response.getBody().getWindSpeedKmh());
         assertNotNull(response.getBody().getObservedAt());
         assertTrue(!response.getBody().getObservedAt().isBlank());
+        assertNotNull(response.getBody().getIsDay());
+        assertNotNull(response.getBody().getDayPhase());
+        assertTrue(!response.getBody().getDayPhase().isBlank());
+        assertNotNull(response.getBody().getWeatherCode());
+        assertNotNull(response.getBody().getWeatherCondition());
+        assertTrue(!response.getBody().getWeatherCondition().isBlank());
     }
 
     private LocationGroupResponseDTO createGroup(String baseUrl, String name) {

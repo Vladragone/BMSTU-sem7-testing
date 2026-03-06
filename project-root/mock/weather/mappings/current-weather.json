@@ -10,7 +10,7 @@
         "matches": ".*"
       },
       "current": {
-        "equalTo": "temperature_2m,wind_speed_10m"
+        "equalTo": "temperature_2m,wind_speed_10m,is_day,weather_code"
       }
     }
   },
@@ -31,7 +31,9 @@
         "time": "2026-03-02T12:00",
         "interval": 900,
         "temperature_2m": 21.5,
-        "wind_speed_10m": 12.3
+        "wind_speed_10m": 12.3,
+        "is_day": 1,
+        "weather_code": 3
       }
     }
   }
